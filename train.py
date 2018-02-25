@@ -27,73 +27,6 @@ def get_train_and_test_data(car_folder, non_car_folder):
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.25)
     return X_train, X_test, Y_train, Y_test
 
-def get_image_histogram(img, n_bins=32,bins_range=(0,256)):
-    ch0 = img[:,:,0]
-    ch1 = img[:,:,1]
-    ch2 = img[:,:,2]
-    hist0 = np.histogram(ch0,n_bins,bins_range)[0]
-    hist1 = np.histogram(ch1,n_bins,bins_range)[0]
-    hist2 = np.histogram(ch2,n_bins,bins_range)[0]
-    feat = np.concatenate((hist0,hist1, hist2))
-    return feat
-
-def get_hog_features(img, n_orientations=9,pixels_per_cell=8, cells_per_block=2, visualize=False, feature_vector=True):
-    gray_img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-    if visualize:
-        features, hog_img = hog(gray_img, n_orientations, (pixels_per_cell, pixels_per_cell), (cells_per_block, cells_per_block),
-            visualise=visualize,feature_vector=feature_vector)
-        plt.figure()
-        plt.subplot('121')
-        plt.imshow(img)
-        plt.title('Original Image')
-        plt.subplot('122')
-        plt.imshow(hog_img)
-        plt.title('Hog Image')
-        plt.show()
-    else:
-        features = hog(gray_img, n_orientations, (pixels_per_cell, pixels_per_cell),
-                       (cells_per_block, cells_per_block),
-                       visualise=visualize, feature_vector=feature_vector)
-    return features
-
-def get_non_hog_features(img):
-    my_img = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-    bin_img = cv2.resize(my_img, (16, 16))
-    feat0 = np.ravel(bin_img)
-    feat1 = get_image_histogram(my_img)
-    return feat0, feat1
-
-def extract_features(img):
-    feat0, feat1 = get_non_hog_features(img)
-    feat2 = get_hog_features(img)
-    feat = np.concatenate((feat0,feat1,feat2))
-    # plt.figure()
-    # x=range(len(feat))
-    # plt.plot(x,feat)
-    return feat
-
-def train_classifier(car_folder, non_car_folder):
-    X_train, X_test, Y_train, Y_test = get_train_and_test_data(car_folder,non_car_folder)
-    X_features = []
-    for img in X_train:
-        feat = extract_features(img)
-        X_features.append(feat)
-    X_train_features = np.vstack(X_features)
-    X_features = []
-    for img in X_test:
-        feat = extract_features(img)
-        X_features.append(feat)
-    X_test_features = np.vstack(X_features)
-    scaler = StandardScaler().fit(X_features)
-    scaled_X_train_features = scaler.transform(X_train_features)
-    scaled_X_test_features = scaler.transform(X_test_features)
-    clf = LinearSVC()
-    clf.fit(scaled_X_train_features,Y_train)
-    pred = clf.predict(scaled_X_test_features)
-    accuracy = accuracy_score(Y_test, pred)
-    print("The accuracy of the classifier is {}".format(accuracy))
-    return clf, scaler
-
 def draw_boxes(img, boxes, color = (0,0,255), thickness = 6):
     for box in boxes:
         cv2.rectangle(img, box[0], box[1], color, thickness)
@@ -181,3 +114,77 @@ def find_cars(img, clf, scaler):
     # plt.imshow(draw_img)
     # plt.show()
     return draw_img
+
+class CarDetector:
+    def __init__(self,pixels_per_cell=8, cells_per_block=2):
+        __pixels_per_cell = pixels_per_cell
+        __cells_per_block = cells_per_block
+        __scaler = StandardScaler()
+        __clf = LinearSVC()
+
+    def get_image_histogram(self,img, n_bins=32, bins_range=(0, 256)):
+        ch0 = img[:, :, 0]
+        ch1 = img[:, :, 1]
+        ch2 = img[:, :, 2]
+        hist0 = np.histogram(ch0, n_bins, bins_range)[0]
+        hist1 = np.histogram(ch1, n_bins, bins_range)[0]
+        hist2 = np.histogram(ch2, n_bins, bins_range)[0]
+        feat = np.concatenate((hist0, hist1, hist2))
+        return feat
+
+    def get_hog_features(self,img, n_orientations=9,visualize=False,
+                         feature_vector=True):
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        if visualize:
+            features, hog_img = hog(gray_img, n_orientations, (self.__pixels_per_cell, self.__pixels_per_cell),
+                                    (self.__cells_per_block, self.__cells_per_block),
+                                    visualise=visualize, feature_vector=feature_vector)
+            plt.figure()
+            plt.subplot('121')
+            plt.imshow(img)
+            plt.title('Original Image')
+            plt.subplot('122')
+            plt.imshow(hog_img)
+            plt.title('Hog Image')
+            plt.show()
+        else:
+            features = hog(gray_img, n_orientations, (self.__pixels_per_cell, self.__pixels_per_cell),
+                           (self.__cells_per_block, self.__cells_per_block),
+                           visualise=visualize, feature_vector=feature_vector)
+        return features
+
+    def get_non_hog_features(self,img):
+        my_img = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+        bin_img = cv2.resize(my_img, (16, 16))
+        feat0 = np.ravel(bin_img)
+        feat1 = self.get_image_histogram(my_img)
+        return feat0, feat1
+
+    def extract_features(self,img):
+        feat0, feat1 = self.get_non_hog_features(img)
+        feat2 = self.get_hog_features(img)
+        feat = np.concatenate((feat0, feat1, feat2))
+        # plt.figure()
+        # x=range(len(feat))
+        # plt.plot(x,feat)
+        return feat
+
+    def trian_classifier(self, car_folder, non_car_folder):
+        X_train, X_test, Y_train, Y_test = get_train_and_test_data(car_folder, non_car_folder)
+        X_features = []
+        for img in X_train:
+            feat = self.extract_features(img)
+            X_features.append(feat)
+        X_train_features = np.vstack(X_features)
+        X_features = []
+        for img in X_test:
+            feat = self.extract_features(img)
+            X_features.append(feat)
+        X_test_features = np.vstack(X_features)
+        self.__scaler.fit(X_features)
+        scaled_X_train_features = self.__scaler.transform(X_train_features)
+        scaled_X_test_features = self.__scaler.transform(X_test_features)
+        self.__clf.fit(scaled_X_train_features, Y_train)
+        pred = self.__clf.predict(scaled_X_test_features)
+        accuracy = accuracy_score(Y_test, pred)
+        print("The accuracy of the classifier is {}".format(accuracy))

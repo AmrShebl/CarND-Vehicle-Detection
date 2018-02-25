@@ -4,7 +4,8 @@ import glob
 import matplotlib.pyplot as plt
 
 def main():
-    clf, scaler = train_classifier('vehicles','non-vehicles')
+    car_detector = CarDetector()
+    car_detector.trian_classifier('vehicles','non-vehicles')
     image_files = glob.glob(r'./test_images/test*.jpg')
     subplot_text = '23'
     i=0
