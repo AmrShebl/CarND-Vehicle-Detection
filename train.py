@@ -93,7 +93,7 @@ class CarDetector:
         return feat
 
     def get_non_hog_features(self,img):
-        my_img = cv2.cvtColor(img,cv2.COLOR_BGR2HLS)
+        my_img = cv2.cvtColor(img,cv2.COLOR_BGR2YCrCb)
         bin_img = cv2.resize(my_img, (16, 16))
         feat0 = bin_img.ravel()
         feat1 = self.get_image_histogram(my_img)
@@ -101,9 +101,15 @@ class CarDetector:
 
     def extract_features(self,img):
         feat0, feat1 = self.get_non_hog_features(img)
-        gray_img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-        hog_feat = self.get_hog_features(gray_img)
-        feat = np.concatenate((feat0, feat1, hog_feat))
+        #gray_img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        YCrCb_img = cv2.cvtColor(img,cv2.COLOR_BGR2YCrCb)
+        Y_img=YCrCb_img[:,:,0]
+        Cr_img = YCrCb_img[:, :, 1]
+        Cb_img = YCrCb_img[:, :, 2]
+        hog_Y = self.get_hog_features(Y_img)
+        hog_Cr = self.get_hog_features(Cr_img)
+        hog_Cb = self.get_hog_features(Cb_img)
+        feat = np.concatenate((feat0, feat1, hog_Y, hog_Cr, hog_Cb))
         # plt.figure()
         # x=range(len(feat))
         # plt.plot(x,feat)
@@ -142,21 +148,13 @@ class CarDetector:
         scale_sub_img = sub_img
         if scale != 1:
             scale_sub_img = cv2.resize(sub_img, (int(sub_img.shape[1] / scale), int(sub_img.shape[0] / scale)))
-        # plt.figure()
-        # plt.imshow(scale_sub_img)
-        # plt.figure()
-        # plt.subplot('131')
-        # plt.imshow(h,cmap='gray')
-        # plt.title('H')
-        # plt.subplot('132')
-        # plt.imshow(l, cmap='gray')
-        # plt.title('L')
-        # plt.subplot('133')
-        # plt.imshow(s, cmap='gray')
-        # plt.title('L')
-        # plt.show()
-        gray_image = cv2.cvtColor(scale_sub_img, cv2.COLOR_BGR2GRAY)
-        hog_img = self.get_hog_features(gray_image, feature_vector=False)
+        YCrCb_img = cv2.cvtColor(scale_sub_img, cv2.COLOR_BGR2YCrCb)
+        Y_img = YCrCb_img[:, :, 0]
+        Cr_img = YCrCb_img[:, :, 1]
+        Cb_img = YCrCb_img[:, :, 2]
+        hog_Y = self.get_hog_features(Y_img, feature_vector=False)
+        hog_Cr = self.get_hog_features(Cr_img, feature_vector=False)
+        hog_Cb = self.get_hog_features(Cb_img, feature_vector=False)
         yMax, xMax, c = scale_sub_img.shape
         while y_pos + window_pixels < yMax:
             x_pos = 0
@@ -165,8 +163,10 @@ class CarDetector:
                 cell_x_pos = x_pos // pixel_per_cell
                 cell_y_pos = y_pos // pixel_per_cell
                 feat0, feat1 = self.get_non_hog_features(window_img)
-                window_hog = hog_img[cell_y_pos:cell_y_pos + hog_window, cell_x_pos:cell_x_pos + hog_window]
-                features = [np.hstack((feat0, feat1, window_hog.ravel()))]
+                window_hog_Y = hog_Y[cell_y_pos:cell_y_pos + hog_window, cell_x_pos:cell_x_pos + hog_window]
+                window_hog_Cr = hog_Cr[cell_y_pos:cell_y_pos + hog_window, cell_x_pos:cell_x_pos + hog_window]
+                window_hog_Cb = hog_Cb[cell_y_pos:cell_y_pos + hog_window, cell_x_pos:cell_x_pos + hog_window]
+                features = [np.hstack((feat0, feat1, window_hog_Y.ravel(), window_hog_Cr.ravel(), window_hog_Cb.ravel()))]
                 features = self.__scaler.transform(features)
                 pred = self.__clf.predict(features)
                 box = ((int(x_pos * scale), int((y_pos * scale) + y_start)),
@@ -178,9 +178,6 @@ class CarDetector:
                 x_pos += step * pixel_per_cell
             y_pos += step * pixel_per_cell
         draw_boxes(draw_img, out_boxes)
-        # plt.figure()
-        # draw_img = cv2.cvtColor(draw_img,cv2.COLOR_BGR2RGB)
-        # plt.imshow(draw_img)
         return out_boxes
     def __append_heat_map(self, heat_map):
         if(len(self.__latest_heat_maps)<self.__n_avg):
@@ -191,41 +188,25 @@ class CarDetector:
 
     def __get_average_heat_map(self):
         a = np.array(self.__latest_heat_maps)
-        return np.sum(a,axis=0)#.astype(int)
+        return np.average(a,axis=0).astype(int)
 
     def find_cars(self,img):
         draw_img = np.copy(img)
         heat_map = np.zeros(img.shape[:-1])
-        boxes = self.find_cars_with_scale(img, scale=1, y_start=400, y_end=656)
+        boxes = self.find_cars_with_scale(img, scale=1, y_start=400, y_end=496)
         update_heat_map(heat_map, boxes)
-        boxes = self.find_cars_with_scale(img, scale=1.5, y_start=400, y_end=656)
+        boxes = self.find_cars_with_scale(img, scale=1.25, y_start=400, y_end=528)
         update_heat_map(heat_map, boxes)
-        # boxes = self.find_cars_with_scale(img, scale=0.75, y_start=400, y_end=656)
-        # update_heat_map(heat_map, boxes)
-        apply_threshold(heat_map, 2)
-        average_heat_map = heat_map
-        # self.__append_heat_map(heat_map)
-        #
-        # average_heat_map = self.__get_average_heat_map()
-        #
-        # #apply_threshold(average_heat_map, 27)
-        # l= len(self.__latest_heat_maps)
-        # if l ==1:
-        #     threshold = 2
-        # elif l ==2:
-        #     threshold = 3
-        # else:
-        #     threshold = int(1.5*l)
-        # apply_threshold(average_heat_map, threshold)
+        boxes = self.find_cars_with_scale(img, scale=1.5, y_start=400, y_end=592)
+        update_heat_map(heat_map, boxes)
+        boxes = self.find_cars_with_scale(img, scale=1.75, y_start=400, y_end=656)
+        update_heat_map(heat_map, boxes)
+        self.__append_heat_map(heat_map)
+
+        average_heat_map = self.__get_average_heat_map()
+        threshold =2
+        apply_threshold(average_heat_map, threshold)
         labels = label(average_heat_map)
         car_boxes = get_car_boxes(labels)
         draw_boxes(draw_img, car_boxes, (255, 0, 0))
-        # plt.figure()
-        # plt.imshow(average_heat_map,cmap='hot')
-        # plt.figure()
-        # plt.imshow(labels[0],cmap='gray')
-        # plt.figure()
-        # draw_img = cv2.cvtColor(draw_img,cv2.COLOR_BGR2RGB)
-        # plt.imshow(draw_img)
-        # plt.show()
         return draw_img

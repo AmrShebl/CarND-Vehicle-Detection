@@ -44,7 +44,7 @@ All `vehicle` and `non-vehicle` images are read in the function get_train_and_te
 
 ![alt text][image1]
 
-I applied hog on the grayscale image. The colors are taken care of in the color bin and color histogram features. In hog, I only focused on edges which are in the grayscale image.
+I applied hog on all the channels of the image after converting it to the YCrCb color space.
 
 Here is an example of the output of HOG with parameters `orientations=9`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
 
@@ -53,22 +53,23 @@ Here is an example of the output of HOG with parameters `orientations=9`, `pixel
 
 #### 2. Explain how you settled on your final choice of HOG parameters.
 
-I tried the parameters suggested in the provided material and they worked well.
+I tried the parameters suggested in the provided material and they worked well. The only thing that I needed to change was the color space. I tried the Grayscale and the HLS but they didn't work well. Finally, I found that the YCrCb was the best color space.
 
 #### 3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
 This is done in the function train_classifier. All car and non car images were loaded and seperated into training and test sets in the function get_train_and_test_data(car_folder,non_car_folder). The features were extracted from each image using the function extract_features(img). This function finds the following features and concatenates them side by side:
-1- Color Bins in the HLS color space
-2- Color histogram in the HLS color space
-3- HOG features of the grayscale image
+1- Color Bins in the YCrCb color space
+2- Color histogram in the YCrCb color space
+3- HOG features of all the channels of the YCrCb image
 After parsing in all the training features, a standard scaler is fit to scale the features such that they all have a mean of zero and a standard deviation of one.
-A linear Support Vector Machine, SVM, is then trained using the scaled training data. The features of the test set are also extracted and scaled using the same Standard Scaler. The accuracy of the classifier is then calculated and found to be 98.81%
+A linear Support Vector Machine, SVM, is then trained using the scaled training data. The features of the test set are also extracted and scaled using the same Standard Scaler. The accuracy of the classifier is then calculated and found to be 99.26%
 
 ### Sliding Window Search
 
 #### 1. Describe how (and identify where in your code) you implemented a sliding window search.  How did you decide what scales to search and how much to overlap windows?
 
 The sliding window search is implemented in the function find_cars_with_scale. I tried different scales and chose those that result in boxes that are the size of the cars in different test images. For window overlap, I used the value suggested in the provided materials.
+I ended up using the scales 1, 1.25, 1.5, and 1.75
 
 ![alt text][image3]
 
