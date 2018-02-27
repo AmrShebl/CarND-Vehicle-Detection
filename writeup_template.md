@@ -75,7 +75,7 @@ I ended up using the scales 1, 1.25, 1.5, and 1.75
 
 #### 2. Show some examples of test images to demonstrate how your pipeline is working.  What did you do to optimize the performance of your classifier?
 
-Ultimately I searched on two scales, 1 and 1.5. I used the same features descriped before in the training phase.
+The performance of the classifier was super good from the very beginning. Here are some examples of the outputs of the pipeline.
 
 ![alt text][image4]
 ---
@@ -83,12 +83,11 @@ Ultimately I searched on two scales, 1 and 1.5. I used the same features descrip
 ### Video Implementation
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
-Here's a [link to my video result](./project_video.mp4)
+Here's a [link to my video result](./output_project_video.mp4)
 
 
 #### 2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
-
-I recorded the positions of positive detections in each frame of the video.  From the positive detections I created a heatmap and then thresholded that map to identify vehicle positions.  I then used `scipy.ndimage.measurements.label()` to identify individual blobs in the heatmap.  I then assumed each blob corresponded to a vehicle.  I constructed bounding boxes to cover the area of each blob detected.  
+Each frame is passed to the pipeline with scales 1, 1.25, 1.5, and 1.75. For each scale, the detected boxes are used to update a heatmap. This heatmap is then passed to a list that keeps track of the last 5 heatmaps corresponding to the last 5 frames. An average of this list of 5 heatmaps is used to detect vehicles. The average is first thresholded at 2. I then used `scipy.ndimage.measurements.label()` to identify individual blobs in the heatmap.  I then assumed each blob corresponded to a vehicle.  I constructed bounding boxes to cover the area of each blob detected.  
 
 Here's an example result showing the heatmap from a series of frames of video, the result of `scipy.ndimage.measurements.label()` and the bounding boxes then overlaid on the last frame of video:
 
@@ -110,5 +109,5 @@ Here's an example result showing the heatmap from a series of frames of video, t
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+The main challenge I faced was chosing the right color space to go around the problem of the shadows. Since the pipeline takes a portion of the image, I am not sure how it would perform on steep roads  
 
